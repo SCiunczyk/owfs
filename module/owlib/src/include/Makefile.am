@@ -37,6 +37,7 @@ noinst_HEADERS =           \
         ow_2804.h          \
         ow_2810.h          \
         ow_2890.h          \
+        ow_owbutton.h      \
         ow_alloc.h         \
         ow_arg.h           \
         ow_avahi.h         \
