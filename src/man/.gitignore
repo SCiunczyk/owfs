@@ -9,6 +9,7 @@ man1/owserver.1
 man1/owshell.1
 man1/owtap.1
 man5/owfs.5
+man5/*.5
 mann/owtcl.n
 
 
