@@ -48,8 +48,8 @@
 /* ------- Prototypes ----------- */
 
 /* owButton switch */
-READ_FUNCTION(FS_r_piostate);
-WRITE_FUNCTION(FS_w_piostate);
+READ_FUNCTION(FS_r_state);
+WRITE_FUNCTION(FS_w_backlight);
 READ_FUNCTION(FS_r_pio);
 WRITE_FUNCTION(FS_w_pio);
 READ_FUNCTION(FS_sense);
@@ -60,16 +60,18 @@ READ_FUNCTION(FS_sense);
 static struct aggregate AowButton = { 2, ag_letters, ag_aggregate, };
 static struct filetype owButton[] = {
 	F_STANDARD,
-	{"piostate", PROPERTY_LENGTH_UNSIGNED, NON_AGGREGATE, ft_unsigned, fc_volatile, FS_r_piostate, FS_w_piostate, INVISIBLE, NO_FILETYPE_DATA, },
-	{"PIO", PROPERTY_LENGTH_BITFIELD, &AowButton, ft_bitfield, fc_link, FS_r_pio, FS_w_pio, VISIBLE, NO_FILETYPE_DATA, },
-	{"sensed", PROPERTY_LENGTH_BITFIELD, &AowButton, ft_bitfield, fc_link, FS_sense, NO_WRITE_FUNCTION, VISIBLE, NO_FILETYPE_DATA, },
+//	{"piostate", PROPERTY_LENGTH_UNSIGNED, NON_AGGREGATE, ft_unsigned, fc_volatile, FS_r_piostate, FS_w_piostate, INVISIBLE, NO_FILETYPE_DATA, },
+//	{"PIO", PROPERTY_LENGTH_BITFIELD, &AowButton, ft_bitfield, fc_link, FS_r_pio, FS_w_pio, VISIBLE, NO_FILETYPE_DATA, },
+	{"btn-state", PROPERTY_LENGTH_BITFIELD, NON_AGGREGATE, ft_bitfield, fc_uncached, FS_r_state, NO_WRITE_FUNCTION, VISIBLE, NO_FILETYPE_DATA, },
+	{"btn-backlight", PROPERTY_LENGTH_BITFIELD, NON_AGGREGATE, ft_integer, fc_stable, NO_READ_FUNCTION, FS_w_backlight, VISIBLE, NO_FILETYPE_DATA, },
+//	{"sensed", PROPERTY_LENGTH_BITFIELD, &AowButton, ft_bitfield, fc_link, FS_sense, NO_WRITE_FUNCTION, VISIBLE, NO_FILETYPE_DATA, },
 //	{"latch", PROPERTY_LENGTH_BITFIELD, &A2413, ft_bitfield, fc_link, FS_r_latch, FS_w_pio, VISIBLE, NO_FILETYPE_DATA, },
 };
 
-DeviceEntryExtended(BB, owButton, DEV_resume | DEV_ovdr, NO_GENERIC_READ, NO_GENERIC_WRITE);
+DeviceEntryExtended(EB, owButton, DEV_resume | DEV_ovdr, NO_GENERIC_READ, NO_GENERIC_WRITE);
 
-#define _1W_PIO_ACCESS_READ 0xF5
-#define _1W_PIO_ACCESS_WRITE 0x5A
+#define _1W_BTN_STATE_READ 0xF5
+#define _1W_BTN_BACKLIGHT_WRITE 0x5A
 
 #define _1W_2413_LATCH_MASK 0x0A
 #define _1W_2413_CONFIRMATION 0xAA
@@ -82,7 +84,7 @@ static GOOD_OR_BAD OW_read(BYTE * data, const struct parsedname *pn);
 static UINT SENSED_state(UINT status_bits);
 static UINT LATCH_state(UINT status_bits);
 
-static ZERO_OR_ERROR FS_r_piostate(struct one_wire_query *owq)
+static ZERO_OR_ERROR FS_r_state(struct one_wire_query *owq)
 {
 	/* surrogate property
 	bit 0 PIOA pin state
@@ -90,18 +92,18 @@ static ZERO_OR_ERROR FS_r_piostate(struct one_wire_query *owq)
 	bit 2 PIOB pin state
 	bit 3 PIOB latch state
 	*/
-	BYTE piostate ;
+	BYTE state ;
 
-	if ( OW_read( &piostate, PN(owq) ) ) {
+	if ( OW_read( &state, PN(owq) ) ) {
 		return -EINVAL ;
 	}
 
-	OWQ_U(owq) = piostate ;
+	OWQ_U(owq) = state ;
 	return 0 ;
 }
 
 /* write 2413 switch -- 2 values*/
-static ZERO_OR_ERROR FS_w_piostate(struct one_wire_query *owq)
+static ZERO_OR_ERROR FS_w_backlight(struct one_wire_query *owq)
 {
 	UINT pio = OWQ_U(owq) ;
 
@@ -151,7 +153,7 @@ static ZERO_OR_ERROR FS_sense(struct one_wire_query *owq)
 /* read status byte */
 static GOOD_OR_BAD OW_read(BYTE * data, const struct parsedname *pn)
 {
-	BYTE cmd[] = { _1W_PIO_ACCESS_READ, };
+	BYTE cmd[] = { _1W_BTN_STATE_READ, };
 	BYTE resp[1] ;
 	struct transaction_log t[] = {
 		TRXN_START,
@@ -168,7 +170,7 @@ static GOOD_OR_BAD OW_read(BYTE * data, const struct parsedname *pn)
 		return gbBAD;
 	}
 
-	data[0] = resp[0] & 0x0F ;
+	data[0] = resp[0] & 0x01 ;
 	return gbGOOD;
 }
 
@@ -176,8 +178,8 @@ static GOOD_OR_BAD OW_read(BYTE * data, const struct parsedname *pn)
 /* top 6 bits are set to 1, complement then sent */
 static GOOD_OR_BAD OW_write(BYTE data, const struct parsedname *pn)
 {
-	BYTE data_masked = data | 0xFC ;
-	BYTE cmd[] = { _1W_PIO_ACCESS_WRITE, data_masked, ~data_masked, };
+//	BYTE data_masked = data | 0xFC ;
+	BYTE cmd[] = { _1W_BTN_BACKLIGHT_WRITE, data, ~data, };
 	BYTE chk[1];
 	BYTE confirm[] = { _1W_2413_CONFIRMATION, } ;
 	struct transaction_log t[] = {
