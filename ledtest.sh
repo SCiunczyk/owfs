@@ -1,6 +1,7 @@
 
     #!/bin/bash
     # Basic while loop
+    date
     counter=1
     while [ $counter -le 255 ]
     do
@@ -14,4 +15,5 @@
       owwrite /EB.54594D454BFF/btn-backlight $counter
       ((counter--))
     done
+    date
     echo All done
